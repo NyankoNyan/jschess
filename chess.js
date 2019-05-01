@@ -36,24 +36,21 @@ Battlefield.prototype.isAllyHere = function(point, owner){
 	for(var figId = 0; figId < this.figures.length; figId++){
 		var figure = this.figures[figId];
 		if(figure.place.isEqual(point)){
-			return figure.owner = owner;
+			return figure.owner == owner;
 		}
 	}
 	return false;
 };
-Battlefield.prototype.setupChess = function(){
+Battlefield.prototype.setupChess = function(){	
+	this.figures.push( new FigKing( this, 1, new PlacePoint(4,7) ) );
+	this.figures.push( new FigKing( this, 2, new PlacePoint(4,0) ) );
+};
+Battlefield.prototype.removeFigure = function(figure){
 	
-	var figure = null;
-	
-	figure = new FigKing(this);
-	figure.owner = 1;
-	figure.place = new PlacePoint(4,7);
-	this.figures.push(figure);
-	
-	figure = new FigKing(this);
-	figure.owner = 2;
-	figure.place = new PlacePoint(4,0);
-	this.figures.push(figure);
+	var figIndex = this.figures.indexOf(figure);
+	if( figIndex >= 0 ){
+		this.figures.splice(figIndex,1);
+	}
 };
 
 

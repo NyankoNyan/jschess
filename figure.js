@@ -1,11 +1,11 @@
 "use strict";
 
-function Figure(battlefield){
-	this.place = null;
+function Figure( battlefield, owner, place ){
+	this.place = PlacePoint.copy(place);
 	this.spawned = false;
 	this.change = new MyEvent();
 	this.battlefield = battlefield;
-	this.owner = null;
+	this.owner = owner;
 	this.name = "";
 }
 Figure.prototype.spawn = function(point){
@@ -26,7 +26,13 @@ Figure.prototype.spawn = function(point){
 	}
 };
 Figure.prototype.moveTo = function( point ){
-	if( this.canMoveTo( point ) ){
+	if( this.canMoveTo( point ) ){		
+		var endPointFigures = this.battlefield.whatAreThere( point );
+		if( endPointFigures != null ){
+			for(var figure of endPointFigures){
+				figure.kill();
+			}
+		}
 		this.place.copy( point );
 		this.change.raise( { action:"move", object:this } );
 	}
@@ -40,13 +46,64 @@ Figure.prototype.canMoveTo = function(point){
 Figure.prototype.getAvailableActions = function(){
 	return null;
 };
+Figure.prototype.kill = function(){
+	this.battlefield.removeFigure( this );
+	this.change.raise( { action:"kill", object:this } );
+};
+Figure.prototype.checkLineByOffset = function(offsetX, offsetY, limit){
+	var result = { move:[], kill:[] };
+	
+	if(offsetX == 0 && offsetY == 0){
+		return result;
+	}
+	
+	for(var counter = 1; counter <= limit || limit == 0; counter++){
+		var checkPoint = new PlacePoint( this.place.x + offsetX * counter, this.place.y + offsetY * counter );
+		if( this.battlefield.isFieldPoint( checkPoint ) ){
+			var checkFigures = this.battlefield.whatAreThere( checkPoint );
+			if( checkFigures != null && checkFigures.length > 0 ){
+				if(checkFigures[0].owner == this.owner){
+					break;
+				}
+				else{
+					result.kill.push(checkFigures);
+				}
+			}
+			else{
+				result.move.push(checkPoint);
+			}
+		}
+		else{
+			break;
+		}
+	}
+	return result;
+}
+Figure.prototype.getLineOffset = function(point){
+	var fullOffsetX = point.x - this.place.x;
+	var fullOffsetY = point.y - this.place.y;
+	
+	if( ( Math.abs(fullOffsetX) == Math.abs(fullOffsetY) )
+		|| ( fullOffsetX == 0 && fullOffsetY != 0 )
+		|| ( fullOffsetX != 0 && fullOffsetY == 0 ) ){
+		return { 
+			x : Math.sign(fullOffsetX),
+			y : Math.sign(fullOffsetY),
+			length : (fullOffsetX != 0) ? Math.abs(fullOffsetX) : Math.abs(fullOffsetY)
+		};
+	}
+	else{
+		return null;
+	}
+}
 
 
-function FigKing( battlefield ){
-	Figure.call( this, battlefield );
+function FigKing( battlefield, owner, place ){
+	Figure.call( this, battlefield, owner, place );
 	this.name = "king";
 }
 Object.setPrototypeOf(FigKing.prototype, Figure.prototype);
+
 FigKing.prototype.canMoveTo = function(point){
 	if( this.battlefield.isFieldPoint(point) 
 		&& this.place.x <= point.x + 1

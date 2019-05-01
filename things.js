@@ -4,6 +4,9 @@ function PlacePoint(x,y){
 	this.x = x;
 	this.y = y;
 }
+PlacePoint.copy = function(placePoint){
+	return new PlacePoint(placePoint.x, placePoint.y);
+}
 PlacePoint.prototype.copy = function(placePoint){
 	this.x = placePoint.x;
 	this.y = placePoint.y;

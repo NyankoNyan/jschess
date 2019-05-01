@@ -198,6 +198,11 @@ BattlefieldView.prototype.onFigureChange = function(args){
 		var figureNode = this.figureElements.get( args.object );
 		this.setFigureElementPlace( figureNode, args.object );	
 	}
+	if( args.action == "kill" ){
+		var figureNode = this.figureElements.get( args.object );
+		figureNode.remove();
+		this.figureElements.delete( args.object );
+	}
 };
 BattlefieldView.prototype.onFigureSelect = function(selectedPoint){
 	var figures = this.battlefield.whatAreThere(selectedPoint);
