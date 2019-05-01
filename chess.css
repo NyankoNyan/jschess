@@ -1,0 +1,72 @@
+body{
+	text-align:center;
+}
+#screen{
+	position:relative;
+	display:inline-block;
+	text-align:center;
+}
+.chessField{
+	display:inline-table;
+	border-collapse:collapse;
+	table-layout:fixed;
+	width:300px;
+	height:300px;
+}
+.row{
+	display:table-row;
+}
+.row:nth-child(even) .cell:nth-child(odd), .row:nth-child(odd) .cell:nth-child(even){
+	background-color: brown;
+}
+.row:nth-child(even) .cell:nth-child(even), .row:nth-child(odd) .cell:nth-child(odd){
+	background-color: yellow;
+}
+.cell{
+	display:table-cell;
+	width:40px;
+	height:40px;
+	border:2px solid brown;
+}
+.cell > div{
+	width:36px;
+	height:36px;
+	margin:0px;
+	padding:0px;
+	
+	border:2px solid rgba(0,0,0,0);
+}
+.cell.selected > div{
+	border-color:blue;
+}
+.cell.kill > div{
+	border-color:red;
+}
+.cell.move > div{
+	border-color:white;
+}
+
+
+.figure{
+	position:absolute;
+	width:40px;
+	height:30px;
+	padding-top:10px;
+	/* border:1px solid black; */
+	pointer-events: none;
+	
+	-webkit-user-select:none;
+	-khtml-user-select: none;
+	-moz-user-select:none;
+	-ms-user-select:none;
+	user-select:none;
+}
+.figure.white{
+	color:white;
+	text-shadow:0px 0px 2px black;
+}
+.figure.black{
+	color:black;
+	text-shadow:0px 0px 2px white;
+}
+
