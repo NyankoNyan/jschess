@@ -135,7 +135,22 @@ BattlefieldView.prototype.renderFigures = function(){
 		switch(figure.name){
 			case "king":
 				figureNode.textContent = "K";
-				break;				
+				break;	
+			case "pawn":
+				figureNode.textContent = "P";
+				break;
+			case "bishop":
+				figureNode.textContent = "B";
+				break;
+			case "rook":
+				figureNode.textContent = "R";
+				break;
+			case "queen":
+				figureNode.textContent = "Q";
+				break;
+			case "knight":
+				figureNode.textContent = "N";
+				break;
 		}
 		
 		switch(figure.owner){
@@ -211,9 +226,9 @@ BattlefieldView.prototype.onFigureSelect = function(selectedPoint){
 		for(var action of actions){
 			var cellNode = document.getElementById(this.getIdByPoint(action.point));
 			switch( action.type ){
-				case "self":
-					cellNode.className += " selected";
-					break;
+				// case "self":
+					// cellNode.className += " selected";
+					// break;
 				case "kill":
 					cellNode.className += " kill";
 					break;
@@ -223,6 +238,10 @@ BattlefieldView.prototype.onFigureSelect = function(selectedPoint){
 			}
 			this.modifiedCells.push(cellNode);
 		}
+		
+		var cellNode = document.getElementById(this.getIdByPoint(figures[0].place));
+		cellNode.className += " selected";
+		this.modifiedCells.push(cellNode);
 	}
 };
 BattlefieldView.prototype.onFigureDeselect = function(args){

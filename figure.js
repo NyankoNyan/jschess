@@ -7,10 +7,12 @@ function Figure( battlefield, owner, place ){
 	this.battlefield = battlefield;
 	this.owner = owner;
 	this.name = "";
+	this.moved = false;
 }
 Figure.prototype.spawn = function(point){
+	//todo check usage
 	if(!this.spawned){
-		let collisions = battlefield.whatAreThere(point);
+		let collisions = this.battlefield.whatAreThere(point);
 		if(collisions.length > 0 ){
 			throw "Can't spawn on another object";
 		}
@@ -34,6 +36,7 @@ Figure.prototype.moveTo = function( point ){
 			}
 		}
 		this.place.copy( point );
+		this.moved = true;
 		this.change.raise( { action:"move", object:this } );
 	}
 	else{
@@ -50,7 +53,8 @@ Figure.prototype.kill = function(){
 	this.battlefield.removeFigure( this );
 	this.change.raise( { action:"kill", object:this } );
 };
-Figure.prototype.checkLineByOffset = function(offsetX, offsetY, limit){
+Figure.prototype.getLineByOffset = function(offsetX, offsetY, limit){
+	
 	var result = { move:[], kill:[] };
 	
 	if(offsetX == 0 && offsetY == 0){
@@ -66,7 +70,8 @@ Figure.prototype.checkLineByOffset = function(offsetX, offsetY, limit){
 					break;
 				}
 				else{
-					result.kill.push(checkFigures);
+					result.kill.push(checkPoint);
+					break;
 				}
 			}
 			else{
@@ -78,7 +83,28 @@ Figure.prototype.checkLineByOffset = function(offsetX, offsetY, limit){
 		}
 	}
 	return result;
-}
+};
+Figure.prototype.checkLineByOffset = function(offsetX, offsetY, limit){
+	
+	if(offsetX == 0 && offsetY == 0){
+		return false;
+	}
+	
+	for(var counter = 1; counter <= limit; counter++){
+		var checkPoint = new PlacePoint( this.place.x + offsetX * counter, this.place.y + offsetY * counter );
+		if( this.battlefield.isFieldPoint( checkPoint ) ){
+			var checkFigures = this.battlefield.whatAreThere( checkPoint );
+			if( checkFigures != null && checkFigures.length > 0 ){
+				return false;
+			}
+		}
+		else{
+			return false;
+		}
+	}
+	
+	return true;
+};
 Figure.prototype.getLineOffset = function(point){
 	var fullOffsetX = point.x - this.place.x;
 	var fullOffsetY = point.y - this.place.y;
@@ -96,6 +122,46 @@ Figure.prototype.getLineOffset = function(point){
 		return null;
 	}
 }
+Figure.prototype.checkLineByPoint = function(point, plus, cross){
+	
+	var offset = this.getLineOffset(point);
+	
+	if(offset == null){
+		return false;
+	}
+	
+	if( !( plus && ( offset.x == 0 || offset.y == 0 ) )
+		&& !( cross && ( Math.abs( offset.x ) == Math.abs( offset.y ) ) ) ){
+		return false;
+	}
+	
+	return this.checkLineByOffset( offset.x, offset.y, offset.length - 1 ) && !this.battlefield.isAllyHere(point, this.owner);
+};
+Figure.prototype.addAction = function(actions, point){
+	if(this.battlefield.isFieldPoint(point)){
+		var otherFigures = this.battlefield.whatAreThere(point);
+		if( otherFigures == null || otherFigures.length == 0 ){
+			actions.push( { type : "move", point : point } );
+		}
+		else if(otherFigures.length == 1 ){
+			if( otherFigures[0].owner != this.owner ){
+				actions.push( { type : "kill", point : point } );
+			}
+		}
+		else{
+			throw "ERROR";			
+		}
+	}
+}
+Figure.prototype.addLine = function(actions, offsetX, offsetY){
+	var linePoints = this.getLineByOffset(offsetX, offsetY, 0);
+	for(var point of linePoints.move){
+		actions.push( { type : "move", point : point } );
+	}
+	for(var point of linePoints.kill){
+		actions.push( { type : "kill", point : point } );
+	}
+};
 
 
 function FigKing( battlefield, owner, place ){
@@ -103,7 +169,6 @@ function FigKing( battlefield, owner, place ){
 	this.name = "king";
 }
 Object.setPrototypeOf(FigKing.prototype, Figure.prototype);
-
 FigKing.prototype.canMoveTo = function(point){
 	if( this.battlefield.isFieldPoint(point) 
 		&& this.place.x <= point.x + 1
@@ -120,111 +185,185 @@ FigKing.prototype.canMoveTo = function(point){
 };
 FigKing.prototype.getAvailableActions = function(){
 	var actions = [];	
-	var addAction = function(x,y){
-		var point = new PlacePoint(x,y);
-		if(this.battlefield.isFieldPoint(point)){
-			var otherFigures = this.battlefield.whatAreThere(point);
-			if( otherFigures == null || otherFigures.length == 0 ){
-				actions.push( { type : "move", point : point } );
-			}
-			else if(otherFigures.length == 1 ){
-				if( otherFigures[0].owner != this.owner ){
-					actions.push( { type : "kill", point : point } );
-				}
-			}
-			else{
-				throw "ERROR";			
-			}
-		}
-	}
-	addAction.call( this, this.place.x + 1, this.place.y - 1 );
-	addAction.call( this, this.place.x + 1, this.place.y );
-	addAction.call( this, this.place.x + 1, this.place.y + 1 );
-	addAction.call( this, this.place.x, this.place.y + 1 );
-	addAction.call( this, this.place.x - 1, this.place.y + 1 );
-	addAction.call( this, this.place.x - 1, this.place.y );
-	addAction.call( this, this.place.x - 1, this.place.y - 1 );
-	addAction.call( this, this.place.x, this.place.y - 1 );
-	actions.push( { type : "self", point : this.place } );
+	this.addAction( actions, new PlacePoint( this.place.x + 1, this.place.y - 1 ) );
+	this.addAction( actions, new PlacePoint( this.place.x + 1, this.place.y ) );
+	this.addAction( actions, new PlacePoint( this.place.x + 1, this.place.y + 1 ) );
+	this.addAction( actions, new PlacePoint( this.place.x, this.place.y + 1 ) );
+	this.addAction( actions, new PlacePoint( this.place.x - 1, this.place.y + 1 ) );
+	this.addAction( actions, new PlacePoint( this.place.x - 1, this.place.y ) );
+	this.addAction( actions, new PlacePoint( this.place.x - 1, this.place.y - 1 ) );
+	this.addAction( actions, new PlacePoint( this.place.x, this.place.y - 1 ) );
 	return actions;
 };
 
 
-function FigPawn(battlefield, side){
-	Figure.call(this, battlefield);
-	this.side = side;
+function FigPawn( battlefield, owner, place ){
+	Figure.call(this, battlefield, owner, place);
+	this.name = "pawn";
 }
 Object.setPrototypeOf(FigPawn.prototype, Figure.prototype);
 FigPawn.prototype.canMoveTo = function(point){
-	if( battlefield.isFieldPoint(point)
-		&& ( ( this.side == 1 && this.place.y == point.y + 1 )
-			|| ( this.side == 2 && this.place.y == point.y - 1 ) )
-		&& ( ( this.place.x == point.x && battlefield.whatAreThere(point) == null ) 
-			|| ( ( this.place.x == point.x + 1
-					|| this.place.x == point.x - 1 )
-				&& battlefield.isEnemyHere(point, this.owner) ) ) ){
-		return true;
-	}
-	else{
-		return false;
-	}
-};
-
-
-function FigBishop(battlefield){
-	Figure.call(this, battlefield);
-}
-Object.setPrototypeOf(FigBishop.prototype, Figure.prototype);
-FigBishop.prototype.canMoveTo = function(point){
-	if( battlefield.isFieldPoint(point)
-		&& this.place.x != point.x
-		&& this.place.y != point.y
-		&& Math.abs(this.place.x - point.x) == Math.abs(this.place.y - point.y)
-		&& !battlefield.isAllyHere(point,this.owner) ){
-		for(var length = 1; length < Math.abs(this.place.x - point.x); length++){
-			var pathPoint = new PlacePoint(
-				this.place.x + length * Math.sign(point.x - this.place.x),
-				this.place.y + length * Math.sign(point.y - this.place.y) );
-			if(battlefield.whatAreThere(pathPoint) != null){
-				return false;
+	if( this.battlefield.isFieldPoint(point) ){
+		if( ( ( this.owner == Player.white && this.place.y == point.y + 2 )
+				|| ( this.owner == Player.black && this.place.y == point.y - 2 ) )
+			&& this.battlefield.whatAreThere( point ) == null
+			&& this.battlefield.whatAreThere( new PlacePoint( this.place.x,
+				( this.owner == Player.white ) ? ( this.place.y - 1 ) : ( this.place.y + 1 ) ) ) == null ){
+			return true;
+		}
+		if( ( this.owner == Player.white && this.place.y == point.y + 1 )
+			|| ( this.owner == Player.black && this.place.y == point.y - 1 ) ){
+			if( this.place.x == point.x && this.battlefield.whatAreThere(point) == null ){
+				return true;
+			}
+			if( ( this.place.x == point.x + 1 || this.place.x == point.x - 1 )
+				&& this.battlefield.isEnemyHere(point, this.owner) ){
+				return true;			
 			}
 		}
-		return true;
-	}
-	return false;	
-};
-
-
-function FigRook(battlefield){
-	Figure.call(this, battlefield);
-}
-Object.setPrototypeOf(FigRook.prototype, Figure.prototype);
-FigRook.prototype.canMoveTo = function(point){
-	if( battlefield.isFieldPoint(point)
-		&& ( (this.place.x == point.x && this.place.y != point.y)
-			|| (this.place.x != point.x && this.place.y == point.y))
-		&& !battlefield.isAllyHere(point,this.owner) ){
-		var pathLength = Math.abs(this.place.x - point.x + this.place.y - point.y) - 1;
-		var directionX = Math.sign(point.x - this.place.x);
-		var directionY = Math.sign(point.y - this.place.y);
-		for(var step = 1; step <= pathLength; step++){
-			if(battlefield.whatAreThere(new PlacePoint(this.place.x + directionX * step, this.place.y + directionY * step)) != null){
-				return false;
-			}
-		}
-		return true;
 	}
 	return false;
 };
+FigPawn.prototype.getAvailableActions = function(){
+	
+	var actions = [];
+	
+	var movePoint = new PlacePoint( this.place.x, 
+		(this.owner == Player.white) ? (this.place.y - 1) : (this.place.y + 1) );
+		
+	if(this.battlefield.isFieldPoint(movePoint) 
+		&& this.battlefield.whatAreThere(movePoint) == null){
+			
+		actions.push( { type:"move", point:movePoint } );	
+		
+		var movePoint2 = new PlacePoint( this.place.x,
+			(this.owner == Player.white) ? (this.place.y - 2) : (this.place.y + 2) );
+		
+		if(!this.moved 
+			&& this.battlefield.isFieldPoint(movePoint2) 
+			&& this.battlefield.whatAreThere(movePoint2) == null)
+		{
+			actions.push( { type:"move", point:movePoint2 } );
+		}
+	}
+	
+	var killPoint = null;
+	
+	killPoint = new PlacePoint( this.place.x + 1,
+		( this.owner == Player.white ) ? ( this.place.y - 1 ) : ( this.place.y + 1 ) );
+		
+	if( this.battlefield.isFieldPoint( killPoint )
+		&& this.battlefield.isEnemyHere( killPoint, this.owner ) ) {
+		actions.push( { type:"kill", point:killPoint } );
+	}
+	
+	killPoint = new PlacePoint( this.place.x - 1,
+		( this.owner == Player.white ) ? ( this.place.y - 1 ) : ( this.place.y + 1 ) );
+		
+	if( this.battlefield.isFieldPoint( killPoint )
+		&& this.battlefield.isEnemyHere( killPoint, this.owner ) ) {
+		actions.push( { type:"kill", point:killPoint } );
+	}
+	
+	return actions;	
+}
 
 
-function FigKnight(battlefield){
-	Figure.call(this, battlefield);
+function FigBishop( battlefield, owner, place ){
+	Figure.call( this, battlefield, owner, place );
+	this.name = "bishop";
+}
+Object.setPrototypeOf(FigBishop.prototype, Figure.prototype);
+FigBishop.prototype.canMoveTo = function(point){
+	return this.checkLineByPoint(point, false, true);	
+};
+FigBishop.prototype.getAvailableActions = function(){
+	var actions = [];
+	this.addLine( actions, 1, 1 );
+	this.addLine( actions, 1, -1 );
+	this.addLine( actions, -1, -1 );
+	this.addLine( actions, -1, 1 );
+	return actions;
+};
+
+
+function FigRook( battlefield, owner, place ){
+	Figure.call( this, battlefield, owner, place );
+	this.name = "rook";
+}
+Object.setPrototypeOf(FigRook.prototype, Figure.prototype);
+FigRook.prototype.canMoveTo = function(point){
+	return this.checkLineByPoint(point, true, false);
+};
+FigRook.prototype.getAvailableActions = function(){
+	var actions = [];
+	this.addLine( actions, 0, 1 );
+	this.addLine( actions, 1, 0 );
+	this.addLine( actions, 0, -1 );
+	this.addLine( actions, -1, 0 );
+	return actions;
+};
+
+
+function FigKnight( battlefield, owner, place ){
+	Figure.call( this, battlefield, owner, place );
+	this.name = "knight";
 }
 Object.setPrototypeOf(FigKnight.prototype, Figure.prototype);
+FigKnight.prototype.canMoveTo = function(point){
+	if( this.battlefield.isFieldPoint(point)){
+		var absX = Math.abs(point.x - this.place.x);
+		var absY = Math.abs(point.y - this.place.y);
+		if ( ( absX == 1 || absY == 1 )
+			&& ( absX == 2 || absY == 2 ) 
+			&& !this.battlefield.isAllyHere(point, this.owner) ){
+			return true;
+		}		
+	}
+	return false;
+};
+FigKnight.prototype.getAvailableActions = function(){
+	var actions = [];
+	var tryAddAction = function(actions, offsetX, offsetY){
+		var point = new PlacePoint(this.place.x + offsetX, this.place.y + offsetY);
+		if(this.canMoveTo(point)){
+			if(this.battlefield.whatAreThere(point) == null){
+				actions.push( { type:"move", point:point } );
+			}
+			else{
+				actions.push( { type:"kill", point:point } );
+			}
+		}
+	};
+	tryAddAction.call( this, actions, 1, 2 );
+	tryAddAction.call( this, actions, -1, 2 );
+	tryAddAction.call( this, actions, 1, -2 );
+	tryAddAction.call( this, actions, -1, -2 );
+	tryAddAction.call( this, actions, 2, 1 );
+	tryAddAction.call( this, actions, -2, 1 );
+	tryAddAction.call( this, actions, 2, -1 );
+	tryAddAction.call( this, actions, -2, -1 );
+	return actions;
+};
 
 
-function FigQueen(battlefield){
-	Figure.call(this, battlefield);
+function FigQueen( battlefield, owner, place ){
+	Figure.call( this, battlefield, owner, place );
+	this.name = "queen";
 }
 Object.setPrototypeOf(FigQueen.prototype, Figure.prototype);
+FigQueen.prototype.canMoveTo = function(point){
+	return this.checkLineByPoint(point, true ,true);
+};
+FigQueen.prototype.getAvailableActions = function(){
+	var actions = [];
+	this.addLine( actions, 0, 1 );
+	this.addLine( actions, 1, 1 );
+	this.addLine( actions, 1, 0 );
+	this.addLine( actions, 1, -1 );
+	this.addLine( actions, 0, -1 );
+	this.addLine( actions, -1, -1 );
+	this.addLine( actions, -1, 0 );
+	this.addLine( actions, -1, 1 );
+	return actions;
+};

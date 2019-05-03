@@ -42,8 +42,32 @@ Battlefield.prototype.isAllyHere = function(point, owner){
 	return false;
 };
 Battlefield.prototype.setupChess = function(){	
-	this.figures.push( new FigKing( this, 1, new PlacePoint(4,7) ) );
-	this.figures.push( new FigKing( this, 2, new PlacePoint(4,0) ) );
+	this.figures.push( new FigKing( this, 1, new PlacePoint(4, 7) ) );
+	this.figures.push( new FigKing( this, 2, new PlacePoint(4, 0) ) );
+	
+	this.figures.push( new FigQueen( this, 1, new PlacePoint(3, 7) ) );
+	this.figures.push( new FigQueen( this, 2, new PlacePoint(3, 0) ) );
+	
+	this.figures.push( new FigBishop( this, 1, new PlacePoint(2, 7) ) );
+	this.figures.push( new FigBishop( this, 1, new PlacePoint(5, 7) ) );
+	this.figures.push( new FigBishop( this, 2, new PlacePoint(2, 0) ) );
+	this.figures.push( new FigBishop( this, 2, new PlacePoint(5, 0) ) );
+	
+	this.figures.push( new FigKnight( this, 1, new PlacePoint(1, 7) ) );
+	this.figures.push( new FigKnight( this, 1, new PlacePoint(6, 7) ) );
+	this.figures.push( new FigKnight( this, 2, new PlacePoint(1, 0) ) );
+	this.figures.push( new FigKnight( this, 2, new PlacePoint(6, 0) ) );
+	
+	this.figures.push( new FigRook( this, 1, new PlacePoint(0, 7) ) );
+	this.figures.push( new FigRook( this, 1, new PlacePoint(7, 7) ) );
+	this.figures.push( new FigRook( this, 2, new PlacePoint(0, 0) ) );
+	this.figures.push( new FigRook( this, 2, new PlacePoint(7, 0) ) );
+	
+	
+	for(var x = 0; x < 8; x++){
+		this.figures.push( new FigPawn( this, 1, new PlacePoint(x,6) ) );
+		this.figures.push( new FigPawn( this, 2, new PlacePoint(x,1) ) );
+	}
 };
 Battlefield.prototype.removeFigure = function(figure){
 	
